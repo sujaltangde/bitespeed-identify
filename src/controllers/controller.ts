@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import {
   createContact,
+  findAllLinkedContacts,
   findContactByEmailOrPhoneByPrecedence,
   findContactsByEmailOrPhone,
 } from "../services/service";
@@ -76,16 +77,14 @@ export const identify = async (req: Request, res: Response) => {
       const data: Contact = {
         email: email ?? null,
         phoneNumber: phoneNumber ?? null,
-        linkedId: null,
+        linkedId: primaryContact?.id,
         linkPrecedence: "secondary",
       };
 
       await createContact(data);
 
-      const secondaryContacts = await findContactByEmailOrPhoneByPrecedence(
-        email,
-        phoneNumber,
-        "secondary"
+      const secondaryContacts = await findAllLinkedContacts(
+        primaryContact?.id
       );
 
       const secondaryContactsIds: number[] = [];

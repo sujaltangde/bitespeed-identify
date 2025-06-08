@@ -69,3 +69,19 @@ export const findContactByEmailOrPhoneByPrecedence = async (email?: string, phon
     throw error;
   }
 };
+
+
+
+export const findAllLinkedContacts = async (id: number) => {
+  const contacts = await prisma.contact.findMany({
+    where: {
+      linkedId: id,
+    },
+    orderBy: {
+      createdAt: 'asc',
+    },
+  });
+
+  return contacts;
+};
+
