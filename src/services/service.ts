@@ -1,6 +1,6 @@
 
 import { PrismaClient } from '@prisma/client';
-import { Contact } from './types';
+import { Contact, LinkPrecedence } from './types';
 
 const prisma = new PrismaClient();
 
@@ -42,3 +42,30 @@ export const createContact = async (data: Contact) => {
   }
 };
 
+
+
+export const findContactByEmailOrPhoneByPrecedence = async (email?: string, phoneNumber?: string, linkPrecedence?: LinkPrecedence ) => {
+  try {
+    const contacts = await prisma.contact.findMany({
+      where: {
+        AND: [
+          {
+            OR: [
+              email ? { email } : undefined,
+              phoneNumber ? { phoneNumber } : undefined,
+            ].filter(Boolean) as any,
+          },
+          { linkPrecedence },
+        ],
+      },
+      orderBy: {
+        createdAt: 'asc',
+      },
+    });
+
+    return contacts;
+  } catch (error) {
+    console.error('Error fetching primary contacts:', error);
+    throw error;
+  }
+};
