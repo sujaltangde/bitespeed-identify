@@ -1,9 +1,12 @@
 import { Request, Response } from "express";
 import {
+  checkIfContactExists,
   createContact,
   findAllLinkedContacts,
   findContactByEmailOrPhoneByPrecedence,
+  findContactById,
   findContactsByEmailOrPhone,
+  updateContactById,
 } from "../services/service";
 import { Contact, ContactSchemaType } from "../services/types";
 
@@ -81,11 +84,13 @@ export const identify = async (req: Request, res: Response) => {
         linkPrecedence: "secondary",
       };
 
-      await createContact(data);
+      const exists = await checkIfContactExists(data);
 
-      const secondaryContacts = await findAllLinkedContacts(
-        primaryContact?.id
-      );
+      if (!exists) {
+        await createContact(data);
+      }
+
+      const secondaryContacts = await findAllLinkedContacts(primaryContact?.id);
 
       const secondaryContactsIds: number[] = [];
       const secondaryEmails: (string | null)[] = [];
@@ -109,7 +114,103 @@ export const identify = async (req: Request, res: Response) => {
       res.status(200).json(response);
       return;
     } else if (primaryContacts && primaryContacts?.length > 1) {
-      // console.log(primaryContacts)
+      const sortedPrimaries = primaryContacts.sort(
+        (a, b) => a.createdAt.getTime() - b.createdAt.getTime()
+      );
+      const oldestPrimaryContact = sortedPrimaries[0];
+      const newestPrimaryContact = sortedPrimaries[sortedPrimaries?.length - 1];
+
+      const data = {
+        linkedId: oldestPrimaryContact?.id,
+        linkPrecedence: "secondary",
+      };
+
+      await updateContactById(newestPrimaryContact?.id, data);
+
+      const newContactData: Contact = {
+        email: email ?? null,
+        phoneNumber: phoneNumber ?? null,
+        linkedId: oldestPrimaryContact?.id,
+        linkPrecedence: "secondary",
+      };
+
+      const exists = await checkIfContactExists(newContactData);
+
+      if (!exists) {
+        await createContact(newContactData);
+      }
+
+      const secondaryContacts = await findAllLinkedContacts(
+        oldestPrimaryContact?.id
+      );
+
+      const secondaryContactsIds: number[] = [];
+      const secondaryEmails: (string | null)[] = [];
+      const secondaryPhoneNumbers: (string | null)[] = [];
+
+      secondaryContacts?.forEach((item: ContactSchemaType) => {
+        secondaryContactsIds.push(item?.id);
+        secondaryEmails.push(item?.email);
+        secondaryPhoneNumbers.push(item?.phoneNumber);
+      });
+
+      const response = {
+        contact: {
+          primaryContatctId: oldestPrimaryContact?.id,
+          emails: [oldestPrimaryContact?.email, ...secondaryEmails],
+          phoneNumbers: [
+            oldestPrimaryContact?.phoneNumber,
+            ...secondaryPhoneNumbers,
+          ],
+          secondaryContactIds: [...secondaryContactsIds],
+        },
+      };
+
+      res.status(200).json(response);
+      return;
+    } else {
+      const relatedContact = contactData?.[0];
+
+      const data: Contact = {
+        email: email ?? null,
+        phoneNumber: phoneNumber ?? null,
+        linkedId: relatedContact?.linkedId,
+        linkPrecedence: "secondary",
+      };
+
+      const exists = await checkIfContactExists(data);
+
+      if (!exists) {
+        await createContact(data);
+      }
+
+      const primaryContact: any = await findContactById(
+        relatedContact?.linkedId
+      );
+
+      const secondaryContacts = await findAllLinkedContacts(primaryContact?.id);
+
+      const secondaryContactsIds: number[] = [];
+      const secondaryEmails: (string | null)[] = [];
+      const secondaryPhoneNumbers: (string | null)[] = [];
+
+      secondaryContacts?.forEach((item: ContactSchemaType) => {
+        secondaryContactsIds.push(item?.id);
+        secondaryEmails.push(item?.email);
+        secondaryPhoneNumbers.push(item?.phoneNumber);
+      });
+
+      const response = {
+        contact: {
+          primaryContatctId: primaryContact?.id,
+          emails: [primaryContact?.email, ...secondaryEmails],
+          phoneNumbers: [primaryContact?.phoneNumber, ...secondaryPhoneNumbers],
+          secondaryContactIds: [...secondaryContactsIds],
+        },
+      };
+
+      res.status(200).json(response);
+      return;
     }
   }
 
