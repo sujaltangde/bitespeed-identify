@@ -7,12 +7,19 @@ generator client {
   provider = "prisma-client-js"
 }
 
+
+enum LinkPrecedence {
+  primary
+  secondary
+}
+
+
 model Contact {
   id             Int      @id @default(autoincrement())
   phoneNumber    String?  
   email          String?  
   linkedId       Int?     
-  linkPrecedence String
+  linkPrecedence LinkPrecedence
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
   deletedAt      DateTime?
